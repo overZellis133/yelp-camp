@@ -1,7 +1,18 @@
 var express = require("express");
+var multer  = require("multer");
 var router  = express.Router();
 var Campground = require("../models/campground");
 var middleware = require("../middleware");
+
+var storage =   multer.diskStorage({
+  destination: function (req, file, callback) {
+    callback(null, './public/uploads');
+  },
+  filename: function (req, file, callback) {
+    callback(null, Date.now() + file.originalname);
+  }
+});
+var upload = multer({ storage : storage}).single('image');
 
 // INDEX - show all campgrounds
 router.get("/", function(req, res){
@@ -17,24 +28,31 @@ router.get("/", function(req, res){
 
 // CREATE - add new campground to DB
 router.post("/", middleware.isLoggedIn, function(req, res){
-    // get data from form and create campground object
-    var name = req.body.name;
-    var image = req.body.image;
-    var description = req.body.description;
-    var author = {
-        id: req.user._id,
-        username: req.user.username
-    }
-    var newCampground = {name: name, image: image, description: description, author: author};
-    // Create a new campground & save to DB
-    Campground.create(newCampground, function(err, newlyCreated){
-        if(err){
-            console.log(err);
-        } else {
-            // redirect back to campgrounds page
-            console.log(newlyCreated);
-            res.redirect("/campgrounds");
+    
+    upload(req,res,function(err) {
+        if(err) {
+            return res.end("Error uploading file.");
         }
+        // get data from form and create campground object
+        var name = req.body.name;
+        var image = '/uploads/' + req.file.filename;
+        var description = req.body.description;
+        var price = req.body.price;
+        var author = {
+            id: req.user._id,
+            username: req.user.username
+        }
+        var newCampground = {name: name, image: image, description: description, price: price, author: author};
+        // Create a new campground & save to DB
+        Campground.create(newCampground, function(err, newlyCreated){
+            if(err){
+                console.log(err);
+            } else {
+                // redirect back to campgrounds page
+                console.log(newlyCreated);
+                res.redirect("/campgrounds");
+            }
+        });
     });
 });
 
